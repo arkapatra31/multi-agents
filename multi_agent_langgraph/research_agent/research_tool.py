@@ -10,3 +10,5 @@ research_tool = Tool(
     func=search.invoke,
     description="Search the internet for information about Python problems or concepts. Input should be a search query.",
 )
+
+__all__ = [research_tool]
