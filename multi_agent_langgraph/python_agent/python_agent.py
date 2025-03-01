@@ -1,9 +1,6 @@
 from dotenv import load_dotenv
 from langchain_openai import ChatOpenAI
-from langchain_core.prompts import (
-    ChatPromptTemplate,
-    MessagesPlaceholder,
-)
+from langchain_core.prompts import  ChatPromptTemplate, SystemMessagePromptTemplate, HumanMessagePromptTemplate
 from langchain.agents import create_tool_calling_agent, AgentExecutor
 from .python_tool import python_tool
 
@@ -12,15 +9,28 @@ load_dotenv()
 
 
 def run_python_agent(question: str):
+
+    system_prompt = SystemMessagePromptTemplate.from_template(
+        template= """
+                        You are a Python code generator. Your task is to generate a Python code to solve the problem.
+                        Sometimes you might be provided with data which needs to be represented visually using graphs or charts
+                        """
+    )
+
+    human_prompt = HumanMessagePromptTemplate.from_template(
+        template= """
+                        Here is the problem: {question}.
+                        Return the Python code to solve the problem and visualize the data if needed.
+                        Once you are done, please return the final output.
+                        Write down your thoughts and reasoning in the {agent_scratchpad}.
+                        """
+    )
+
     # Create the prompt template with system message, human message, and agent_scratchpad
     prompt_template = ChatPromptTemplate.from_messages(
         [
-            (
-                "system",
-                "You are a Python code generator. Your task is to generate a Python code to solve the problem.",
-            ),
-            ("human", "Here is the problem: {question}"),
-            MessagesPlaceholder(variable_name="agent_scratchpad"),
+            system_prompt,
+            human_prompt
         ]
     )
 
@@ -35,7 +45,7 @@ def run_python_agent(question: str):
     response = agent_executor.invoke(
         {
             "question": question,
-            "agent_scratchpad": [],
+            "agent_scratchpad": []
         }
     )
 

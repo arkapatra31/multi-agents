@@ -1,11 +1,6 @@
 from dotenv import load_dotenv
 from langchain_openai import ChatOpenAI
-from langchain_core.prompts import (
-    ChatPromptTemplate,
-    SystemMessagePromptTemplate,
-    HumanMessagePromptTemplate,
-    MessagesPlaceholder,
-)
+from langchain_core.prompts import ChatPromptTemplate, SystemMessagePromptTemplate, HumanMessagePromptTemplate
 from langchain.agents import create_tool_calling_agent
 from langchain.agents import AgentExecutor
 from .research_tool import research_tool
@@ -14,15 +9,26 @@ load_dotenv()
 
 
 def run_research_agent(agent_state):
+    system_prompt = SystemMessagePromptTemplate.from_template(
+        template="""
+                        You are a Python research assistant. Your task is to search for the data and information to solve the problem.
+                        When you find a problem, collect the data and format it nicely and present it to your co-worker who is an expert in Python who will be responsible for solving the problem using the data you provide.
+                        To search for information, use the search tool provided to you.                        
+                        """
+    )
+
+    human_prompt = HumanMessagePromptTemplate.from_template(
+        template="""
+                        Here is the query regarding the Python problem: {query}
+                        Write down your thoughts and reasoning in the {agent_scratchpad}.
+                        """
+    )
+
     # Create the prompt template with the system message and agent_scratchpad
     prompt = ChatPromptTemplate.from_messages(
         [
-            (
-                "system",
-                "You are a Python research assistant. Your task is to search for simple Python problems or questions. When you find a problem, format it nicely and present it to the user. To search for information, use the search tool provided to you.",
-            ),
-            ("human", "Here is the query regarding the Python problem: {query}"),
-            MessagesPlaceholder(variable_name="agent_scratchpad"),
+            system_prompt,
+            human_prompt
         ]
     )
 
@@ -42,7 +48,7 @@ def run_research_agent(agent_state):
     response = agent_executor.invoke(
         {
             "query": agent_state["query"],
-            "agent_scratchpad": [],
+            "agent_scratchpad": []
         }
     )
     return response["output"]
