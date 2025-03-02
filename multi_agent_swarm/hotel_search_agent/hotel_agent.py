@@ -1,3 +1,6 @@
+from tkinter.font import names
+from typing import Callable
+
 from dotenv import load_dotenv
 from langchain_openai import ChatOpenAI
 from langchain_core.prompts import (
@@ -7,6 +10,8 @@ from langchain_core.prompts import (
 )
 from .hotel_tool import search_hotels_tool
 from langchain.agents import create_tool_calling_agent
+from langgraph.prebuilt import create_react_agent
+from langchain_core.runnables import RunnableConfig
 from langgraph_swarm import create_handoff_tool
 from .output_parser import hotel_output_parser
 
@@ -25,8 +30,7 @@ def run_hotel_agent(user_query: str):
     human_prompt = HumanMessagePromptTemplate.from_template(
         template="""
                         I would like you to find {user_query}.
-                        Once you have the results, please return them in the following format:
-                        {hotel_output_parser}
+                        Once you have the results, please return them in JSON format
         """
     )
 
@@ -34,19 +38,22 @@ def run_hotel_agent(user_query: str):
 
     llm = ChatOpenAI(model="gpt-4o-mini", temperature=0, verbose=True)
 
-    tools = [
-        search_hotels_tool,
-        create_handoff_tool(
-            agent_name="hotel_agent",
-            description="A travel agent that can search for hotels.",
-        ),
-    ]
-
-    agent = create_tool_calling_agent(
-        llm=llm,
-        tools=tools,
-        prompt=prompt_template,
-        message_formatter=hotel_output_parser.get_format_instructions(),
+    agent = create_react_agent(
+         llm,
+        [
+            search_hotels_tool,
+            create_handoff_tool(
+                agent_name="flight_agent",
+                description="Transfer to flight_agent, it can help with flight search"
+            )
+        ],
+        prompt="""
+         I would like you to find {user_query}.
+                        Once you have the results, please return them in the following format:
+                        {hotel_output_parser}.
+                        Write down your thought process and reasoning behind the results in the {agent_scratchpad}
+        """,
+        name="flight_assistant"
     )
 
     return agent
