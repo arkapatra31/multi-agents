@@ -18,7 +18,7 @@ from .output_parser import hotel_output_parser
 load_dotenv()
 
 
-def run_hotel_agent(user_query: str):
+def run_hotel_agent():
     system_prompt = SystemMessagePromptTemplate.from_template(
         template="""
                     You are a travel agent. Your task is to search for the best hotel options based on the user's query.
@@ -29,7 +29,7 @@ def run_hotel_agent(user_query: str):
 
     human_prompt = HumanMessagePromptTemplate.from_template(
         template="""
-                        I would like you to find {user_query}.
+                        I would like you to find hotels in Kolkata
                         Once you have the results, please return them in JSON format
         """
     )
@@ -39,13 +39,13 @@ def run_hotel_agent(user_query: str):
     llm = ChatOpenAI(model="gpt-4o-mini", temperature=0, verbose=True)
 
     agent = create_react_agent(
-         llm,
+        llm,
         [
             search_hotels_tool,
             create_handoff_tool(
                 agent_name="flight_agent",
-                description="Transfer to flight_agent, it can help with flight search"
-            )
+                description="Transfer to flight_agent, it can help with flight search",
+            ),
         ],
         prompt="""
          I would like you to find {user_query}.
@@ -53,7 +53,7 @@ def run_hotel_agent(user_query: str):
                         {hotel_output_parser}.
                         Write down your thought process and reasoning behind the results in the {agent_scratchpad}
         """,
-        name="flight_assistant"
+        name="flight_assistant",
     )
 
     return agent

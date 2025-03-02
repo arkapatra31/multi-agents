@@ -14,7 +14,7 @@ from .output_parser import flight_output_parser
 load_dotenv()
 
 
-def run_flight_agent(user_query: str):
+def run_flight_agent():
     system_prompt = SystemMessagePromptTemplate.from_template(
         template="""
                     You are a travel agent. Your task is to search for the best flight options based on the user's query.
@@ -25,7 +25,7 @@ def run_flight_agent(user_query: str):
 
     human_prompt = HumanMessagePromptTemplate.from_template(
         template="""
-                        I would like you to find {user_query}.
+                        I would like you to find flight from Kolkata
                         Once you have the results, please return them in JSON format
                         Write down your thought process and reasoning behind the results in the {agent_scratchpad}
         """
@@ -42,13 +42,13 @@ def run_flight_agent(user_query: str):
             create_handoff_tool(
                 agent_name="hotel_agent",
                 description="Transfer to hotel_agent, it can help with hotel search",
-            )
+            ),
         ],
         prompt="""
                          I would like you to find {user_query}.
                         Once you have the results, please return them in the following format
         """,
-        name="flight_agent"
+        name="flight_agent",
     )
 
     return agent
