@@ -1,21 +1,20 @@
 import os
-import uuid
 from dotenv import load_dotenv
 from typing import TypedDict
 from langgraph.graph import StateGraph
 from langgraph.types import interrupt, Command
-from langgraph.checkpoint.memory import InMemorySaver
+from langgraph.checkpoint.memory import MemorySaver
 from langchain_openai import ChatOpenAI
 from langchain.prompts import PromptTemplate
 from IPython.display import Image, display
 
 load_dotenv()
-llm = ChatOpenAI(model="gpt-4o-mini", temperature=0, verbose=True)
+llm = ChatOpenAI(model="gpt-4o-mini", temperature=0)
 
 
 def add(agent_state):
     prompt = PromptTemplate.from_template(
-        template="""Return the sum of {num1} and {num2}"""
+        template="""Calculate and return only the numeric sum of {num1} and {num2} as a plain number, without any text."""
     )
     chain = prompt | llm
     response = chain.invoke(
@@ -38,7 +37,7 @@ def review(agent_state):
 
 
 def finalize(agent_state):
-    response = agent_state["addition"]
+    response = f"Approved result: {agent_state['addition']}"
     return {"final_result": response}
 
 
@@ -46,7 +45,7 @@ def orchestrate():
     class AgentState(TypedDict):
         num1: int
         num2: int
-        addition: str  # Change to str since it stores text
+        addition: str
         final_result: str
 
     graph = StateGraph(AgentState)
@@ -62,7 +61,7 @@ def orchestrate():
     )
     graph.set_finish_point("finalize")
 
-    checkpointer = InMemorySaver()
+    checkpointer = MemorySaver()
 
     return graph.compile(checkpointer=checkpointer)
 
@@ -70,35 +69,36 @@ def orchestrate():
 if __name__ == "__main__":
     app = orchestrate()
     display(Image(app.get_graph().draw_mermaid_png()))
-    u_id = str(uuid.uuid4())
-    thread_config = {"configurable": {"thread_id": u_id}}
-    result = app.invoke(input={"num1": 5, "num2": 3}, config=thread_config)
+    config = {"configurable": {"thread_id": "556467783abc"}}
 
-    print(result["addition"])
-    state = app.get_state(thread_config)
-    print("################## State ##################")
-    print(state)
-    print("################## State Tasks ##################")
-    print(state.tasks)
-    print("################## Task Interrupts ##################")
-    print(state.tasks[0].interrupts)
+    # Initialize input
+    state_input = {"num1": 7, "num2": 4}
 
-    print("\n\n\n\n\n")
-    print("################## Resume Graph ##################")
-    response = app.invoke(
-        Command(
-            resume=input(
-                "Human Input Validation - Do you approve the addition result? (yes/no) \t"
-            )
-        ),
-        config=thread_config,
-    )
-    print(response)
+    while True:
+        stream = app.stream(state_input, config, stream_mode="values")
+        for event in stream:
+            print(f"Current Event: {event}")
+            print(
+                f"State.next: {app.get_state(config).next}"
+            )  # Debug state transitions
 
-    print("################## State ##################")
-    state = app.get_state(thread_config)
-    print(state)
-    print("################## State Tasks ##################")
-    print(state.tasks)
-    print("################## Task Interrupts ##################")
-    print(state.tasks[0].interrupts if state.tasks else "No interrupts")
+        # After stream completes, check the state
+        state = app.get_state(config)
+        print(f"Final State.next: {state.next}")
+
+        if state.tasks and state.tasks[0].interrupts:  # Interrupt detected
+            interrupt_data = state.tasks[0].interrupts[0].value
+            print(f"Interrupt detected: {interrupt_data}")
+            user_response = input(f"{interrupt_data['question']} (yes/no): ")
+            state_input = Command(resume=user_response)
+        elif state.next == ():
+            print("Graph execution completed successfully.")
+            print(app.get_state(config=config))
+            print(app.get_state(config=config).values["final_result"])
+            break
+        elif state.next == ("add",):
+            print("Looping back to 'add' due to 'no' response.")
+            state_input = None  # Continue from current state
+        else:
+            print(f"Unexpected state with next: {state.next}, breaking.")
+            break
