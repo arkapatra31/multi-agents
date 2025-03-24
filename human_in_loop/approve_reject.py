@@ -96,8 +96,8 @@ if __name__ == "__main__":
             print(app.get_state(config=config))
             print(app.get_state(config=config).values["final_result"])
             break
-        elif state.next == ("add",):
-            print("Looping back to 'add' due to 'no' response.")
+        elif state.next != ():
+            print("Looping back to conditional node")
             state_input = None  # Continue from current state
         else:
             print(f"Unexpected state with next: {state.next}, breaking.")
